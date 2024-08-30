@@ -1,2 +1,2 @@
-position [top: pos_x, left: pos_y, placement: "relative"]
+position [top: pos_y, left: pos_x, placement: "relative"]
   text "O"
