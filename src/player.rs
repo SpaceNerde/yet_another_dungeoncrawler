@@ -1,6 +1,6 @@
 use rltk::{VirtualKeyCode, Rltk, Point, console};
 use specs::prelude::*;
-use super::{Position, Player, TileType, Map, State, Viewshed, RunState, CombatStats};
+use super::{Position, Player, TileType, Map, State, Viewshed, RunState, CombatStats, WantsToMelee};
 use std::cmp::{min, max};
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
@@ -10,9 +10,9 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let combat_stats = ecs.read_storage::<CombatStats>();
     let map = ecs.fetch::<Map>();
     let entities = ecs.entities();
+    let mut wants_to_melee = ecs.write_storage::<WantsToMelee>();
 
-
-    for (_palyer, pos, viewshed) in (&mut players, &mut positions, &mut viewsheds).join() {
+    for (entity, _palyer, pos, viewshed) in (&entities, &players, &mut positions, &mut viewsheds).join() {
         if pos.x + delta_x < 1 || pos.x + delta_x > map.width - 1 || pos.y + delta_y < 1 || pos.y + delta_y > map.height - 1 {
             return;
         }
