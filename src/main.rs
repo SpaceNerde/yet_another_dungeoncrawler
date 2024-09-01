@@ -4,17 +4,20 @@ use std::cmp::{max, min};
 use specs_derive::Component;
 
 mod map;
-pub use map::*;
 mod components;
-pub use components::*;
 mod player;
-pub use player::*;
 mod rect;
-pub use rect::*;
 mod visibility_system;
-use visibility_system::VisibilitySystem;
 mod monster_ai_system;
-use monster_ai_system::*;
+mod map_indexing_system;
+
+pub use map::*;
+pub use components::*;
+pub use player::*;
+pub use rect::*;
+pub use visibility_system::VisibilitySystem;
+pub use monster_ai_system::*;
+pub use map_indexing_system::*;
 
 //
 // Game State
@@ -35,6 +38,9 @@ impl State {
 
         let mut mob = MonsterAI{};
         mob.run_now(&self.ecs);
+
+        let mut mapindex = MapIndexingSystem{};
+        mapindex.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -83,6 +89,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Viewshed>();
     gs.ecs.register::<Monster>();
     gs.ecs.register::<Name>();
+    gs.ecs.register::<BlocksTile>();
 
     let map = Map::new_map_rooms_and_corridors();
     let (player_x, player_y) = map.rooms[0].center();
@@ -122,6 +129,7 @@ fn main() -> rltk::BError {
             })
             .with(Monster{})
             .with(Name { name: format!("{}, #{}", &name, i) })
+            .with(BlocksTile{})
             .build();
     }
 
