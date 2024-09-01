@@ -36,7 +36,7 @@ impl GameState for State {
             
         player_input(self, ctx);
         self.run_systems();
-
+        
         draw_map(&self.ecs, ctx);
 
         let positions = self.ecs.read_storage::<Position>();
@@ -78,6 +78,7 @@ fn main() -> rltk::BError {
         .with(Viewshed{
             visible_tiles: Vec::new(),
             range: 8,
+            dirty: true,
         })
         .build();
     
