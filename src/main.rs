@@ -28,11 +28,10 @@ pub use damage_system::*;
 //
 
 #[derive(PartialEq, Copy, Clone)]
-pub enum RunState { Paused, Running }
+pub enum RunState { AwaitingInput, PreRun, PlayerTurn, MonsterTurn }
 
-struct State {
+pub struct State {
     pub ecs: World,
-    pub runstate: RunState,
 }
 
 impl State {
@@ -46,11 +45,11 @@ impl State {
         let mut mapindex = MapIndexingSystem{};
         mapindex.run_now(&self.ecs);
 
-        let mut melee_combat = MeleeCombatSystem{};
-        melee_combat.run_now(&self.ecs);
+        let mut melee = MeleeCombatSystem{};
+        melee.run_now(&self.ecs);
         
-        let mut dmg_sys = DamageSystem{};
-        dmg_sys.run_now(&self.ecs);
+        let mut dmg = DamageSystem{};
+        dmg.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -59,14 +58,36 @@ impl State {
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
-            
-        if self.runstate == RunState::Running {
-            self.run_systems();
-            self.runstate = RunState::Paused;
-        } else {
-            self.runstate = player_input(self, ctx);
+        let mut newrunstate;
+        // funny borrow checker
+        {
+            let runstate = self.ecs.fetch::<RunState>();
+            newrunstate = *runstate;
+        }
+
+        match newrunstate {
+            RunState::PreRun => {
+                self.run_systems();
+                newrunstate = RunState::AwaitingInput;
+            },
+            RunState::AwaitingInput => {
+                newrunstate = player_input(self, ctx);
+            }
+            RunState::PlayerTurn => {
+                self.run_systems();
+                newrunstate = RunState::MonsterTurn;
+            }
+            RunState::MonsterTurn => {
+                self.run_systems();
+                newrunstate = RunState::AwaitingInput;
+            }
         }
         
+        {
+            let mut runwriter = self.ecs.write_resource::<RunState>();
+            *runwriter = newrunstate;
+        }
+
         damage_system::delete_the_dead(&mut self.ecs);
 
         draw_map(&self.ecs, ctx);
@@ -92,7 +113,6 @@ fn main() -> rltk::BError {
 
     let mut gs = State {
         ecs: World::new(),
-        runstate: RunState::Running,
     };
     
     gs.ecs.register::<Position>();
@@ -109,6 +129,30 @@ fn main() -> rltk::BError {
     let map = Map::new_map_rooms_and_corridors();
     let (player_x, player_y) = map.rooms[0].center();
  
+    let player_entity = gs.ecs
+        .create_entity()
+        .with(Position { x: player_x, y: player_y })
+        .with(Renderable {
+            glyph: rltk::to_cp437('@'),
+            fg: RGB::named(rltk::YELLOW),
+            bg: RGB::named(rltk::BLACK),
+        })
+        .with(Player{})
+        .with(Viewshed{
+            visible_tiles: Vec::new(),
+            range: 8,
+            dirty: true,
+        })
+        .with(Name{ name: "Player".to_string() })
+        .with(CombatStats{
+            max_hp: 30,
+            hp: 30,
+            defense: 2,
+            power: 5,
+        })
+        .build();
+
+
     let mut rng = rltk::RandomNumberGenerator::new();
 
     for (i, room) in map.rooms.iter().skip(1).enumerate() {
@@ -155,31 +199,8 @@ fn main() -> rltk::BError {
     }
 
     gs.ecs.insert(map);
-
-    gs.ecs
-        .create_entity()
-        .with(Position { x: player_x, y: player_y })
-        .with(Renderable {
-            glyph: rltk::to_cp437('@'),
-            fg: RGB::named(rltk::YELLOW),
-            bg: RGB::named(rltk::BLACK),
-        })
-        .with(Player{})
-        .with(Viewshed{
-            visible_tiles: Vec::new(),
-            range: 8,
-            dirty: true,
-        })
-        .with(Name{ name: "Player".to_string() })
-        .with(CombatStats{
-            max_hp: 30,
-            hp: 30,
-            defense: 2,
-            power: 5,
-        })
-        .build();
-
     gs.ecs.insert(Point::new(player_x, player_y));
-
+    gs.ecs.insert(player_entity);
+    gs.ecs.insert(RunState::PreRun);
     rltk::main_loop(context, gs)
 }
