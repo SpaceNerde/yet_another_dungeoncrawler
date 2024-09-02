@@ -6,6 +6,10 @@ use specs::prelude::*;
 use crate::Viewshed;
 use crate::Player;
 
+const MAPWIDTH: usize = 80;
+const MAPHEIGHT: usize = 50;
+const MAPCOUNT: usize = MAPHEIGHT * MAPWIDTH;
+
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
     Wall,
@@ -62,10 +66,10 @@ impl Map {
             rooms: Vec::new(),
             width: 80,
             height: 50,
-            revealed_tiles: vec![false; 80*50],
-            visible_tiles: vec![false; 80*50],
-            blocked: vec![false; 80*50],
-            tile_content: vec![Vec::new(); 80*50],
+            revealed_tiles: vec![false; MAPCOUNT],
+            visible_tiles: vec![false; MAPCOUNT],
+            blocked: vec![false; MAPCOUNT],
+            tile_content: vec![Vec::new(); MAPCOUNT],
         };
 
         const MAX_ROOMS: i32 = 30;
